@@ -19,24 +19,45 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const ON_VERCEL = !!process.env.VERCEL;
 const MAX_SNAPS = 60;
 
-
 const REQUIRED = ["rank", "user_handle", "score"];
 const NON_PROBLEM = new Set([
-  "user_id", "rank", "user_handle", "name", "score", "total_time", "penalty",
-  "country", "country_code", "institution", "institution_type", "rating",
-  "user_gender", "html_handle", "is_user_premium",
+  "user_id",
+  "rank",
+  "user_handle",
+  "name",
+  "score",
+  "total_time",
+  "penalty",
+  "country",
+  "country_code",
+  "institution",
+  "institution_type",
+  "rating",
+  "user_gender",
+  "html_handle",
+  "is_user_premium",
 ]);
 
 // ---------- storage: Redis on Vercel, plain files on your laptop ----------
-const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-const redis = REDIS_URL && REDIS_TOKEN ? new Redis({ url: REDIS_URL, token: REDIS_TOKEN }) : null;
+const REDIS_URL =
+  process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const REDIS_TOKEN =
+  process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+const redis =
+  REDIS_URL && REDIS_TOKEN
+    ? new Redis({ url: REDIS_URL, token: REDIS_TOKEN })
+    : null;
 
-const fileKey = (k) => path.join(DATA_DIR, k.replace(/[^a-z0-9_.-]/gi, "_") + ".json");
+const fileKey = (k) =>
+  path.join(DATA_DIR, k.replace(/[^a-z0-9_.-]/gi, "_") + ".json");
 const store = {
   async get(k) {
     if (redis) return (await redis.get(k)) ?? null;
-    try { return JSON.parse(fs.readFileSync(fileKey(k), "utf8")); } catch { return null; }
+    try {
+      return JSON.parse(fs.readFileSync(fileKey(k), "utf8"));
+    } catch {
+      return null;
+    }
   },
   async set(k, v) {
     if (redis) return redis.set(k, v);
@@ -45,7 +66,9 @@ const store = {
   },
   async del(k) {
     if (redis) return redis.del(k);
-    try { fs.unlinkSync(fileKey(k)); } catch {}
+    try {
+      fs.unlinkSync(fileKey(k));
+    } catch {}
   },
 };
 
@@ -55,14 +78,17 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 4 * 1024 * 1024 }, // Vercel allows about 4.5 MB per request
 });
-const ah = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const ah = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
 
 // stop early with a clear message if Redis is not connected on Vercel
 app.use((req, res, next) => {
   if (ON_VERCEL && !redis)
     return res
       .status(500)
-      .send("Storage not connected. In Vercel: Storage tab, create an Upstash Redis store, connect it to this project, then redeploy.");
+      .send(
+        "Storage not connected. In Vercel: Storage tab, create an Upstash Redis store, connect it to this project, then redeploy.",
+      );
   next();
 });
 
@@ -71,13 +97,21 @@ const norm = (s) => (s || "").trim().toLowerCase();
 const esc = (s) =>
   String(s ?? "").replace(
     /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
   );
 const fmtDate = (d, withDate) =>
   withDate
     ? d.toLocaleString("en-GB", {
-        timeZone: CONTEST_TZ, day: "2-digit", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit", hour12: false,
+        timeZone: CONTEST_TZ,
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
       })
     : d.toLocaleTimeString("en-GB", { timeZone: CONTEST_TZ, hour12: false });
 const isSolved = (v) => {
@@ -105,14 +139,19 @@ function parseCsv(buf) {
   let records;
   const text = buf.toString("utf8").replace(/^\uFEFF/, "");
   try {
-    records = parse(text, { columns: true, skip_empty_lines: true, relax_column_count: true });
+    records = parse(text, {
+      columns: true,
+      skip_empty_lines: true,
+      relax_column_count: true,
+    });
   } catch (e) {
     return { error: "Could not read the file as CSV: " + e.message };
   }
   if (!records.length) return { error: "File has no participants." };
   const cols = Object.keys(records[0]);
   const missing = REQUIRED.filter((c) => !cols.includes(c));
-  if (missing.length) return { error: "Missing columns: " + missing.join(", ") };
+  if (missing.length)
+    return { error: "Missing columns: " + missing.join(", ") };
 
   const seen = new Set();
   const rows = [];
@@ -130,7 +169,9 @@ function parseCsv(buf) {
       !Number.isFinite(score) ||
       String(r.score).trim() === ""
     )
-      return { error: `Line ${line} (${r.user_handle}): rank or score is not a number.` };
+      return {
+        error: `Line ${line} (${r.user_handle}): rank or score is not a number.`,
+      };
     r._rank = rank;
     r._score = score;
     rows.push(r);
@@ -191,7 +232,10 @@ async function saveSnap(result) {
     return o;
   });
   await store.set("cr:snap:" + name, { at: d.toISOString(), cols, rows });
-  const list = [{ name, at: d.toISOString() }, ...(await listSnaps()).filter((s) => s.name !== name)];
+  const list = [
+    { name, at: d.toISOString() },
+    ...(await listSnaps()).filter((s) => s.name !== name),
+  ];
   const keep = list.slice(0, MAX_SNAPS);
   const drop = list.slice(MAX_SNAPS);
   await store.set("cr:snaps", keep);
@@ -216,7 +260,9 @@ function solveStats(shown, problems) {
 
 // ---------- dot banner  ----------
 function dotBanner() {
-  const cols = 90, rows = 4, step = 12;
+  const cols = 90,
+    rows = 4,
+    step = 12;
   let out = "";
   for (let c = 0; c < cols; c++) {
     const t = c / (cols - 1);
@@ -258,10 +304,9 @@ table{border-collapse:collapse;width:100%;min-width:760px;font-size:17px}
 th{background:var(--cream);color:var(--black);font-weight:700;padding:12px 8px;font-size:13px;letter-spacing:1px;text-align:center;white-space:nowrap}
 td{padding:12px 8px;text-align:center;border-bottom:2px dotted #3a3a37}
 td.l{text-align:left;padding-left:12px;white-space:nowrap;font-weight:700}
+td.l{text-align:center;padding:12px 8px;white-space:nowrap;font-weight:700}
 td.l a{color:var(--cream);text-decoration:none}
-td.l small{display:block;color:var(--dim);font-size:12px;font-weight:400;max-width:280px;overflow:hidden;text-overflow:ellipsis}
-td.r{color:var(--orange);font-size:22px;font-weight:800}
-td.sc{color:var(--orange);font-weight:800}
+td.l small{display:block;color:var(--dim);font-size:12px;font-weight:400;max-width:280px;overflow:hidden;text-overflow:ellipsis;margin:0 auto}td.sc{color:var(--orange);font-weight:800}
 tr:hover td{background:#141414}
 .sd,.nd{display:inline-block;width:13px;height:13px;border-radius:50%}
 .sd{background:var(--orange)}
@@ -298,19 +343,23 @@ ${BANNER}
 <div class="live"><i>&#9679;</i> Live<br>${esc(CONTEST_NAME)} | Updated ${esc(updated)}</div></div>
 <div class="tabs"><a class="tab${active === "rank" ? " act" : ""}" href="/">RANKINGS</a><a class="tab${active === "q" ? " act" : ""}" href="/questions">QUESTIONS</a></div>
 ${body}
-<div class="foot"><span>TPC</span><span>IIITDMJ</span><span>CR_04</span></div>
+<div class="foot"><span>TPC</span><span>IIITDMJ</span><span>CR 4.0</span></div>
 </div></body></html>`;
 }
 
 // short CDN cache: keeps Redis reads low while updates still show within seconds
 const publicCache = (req, res, next) => {
-  res.set("Cache-Control", "public, max-age=0, s-maxage=5, stale-while-revalidate=10");
+  res.set(
+    "Cache-Control",
+    "public, max-age=0, s-maxage=5, stale-while-revalidate=10",
+  );
   next();
 };
 
 // ---------- rankings page ----------
 function rankingsBody({ rows, problems, hasTime, hasPen, pages, page }) {
-  if (!rows.length) return `<div class="empty">Standings will appear here shortly</div>`;
+  if (!rows.length)
+    return `<div class="empty">Standings will appear here shortly</div>`;
 
   const podium = page === 1 ? rows.slice(0, 3) : [];
   const tableRows = page === 1 ? rows.slice(3) : rows;
@@ -362,67 +411,85 @@ ${hasTime ? `<td>${esc(r.total_time)}</td>` : ""}${hasPen ? `<td>${esc(r.penalty
 <div class="pager">${pager}</div>`;
 }
 
-app.get("/", publicCache, ah(async (req, res) => {
-  const data = await loadLive();
-  if (!data)
-    return res.send(
-      layout({ active: "rank", updated: "-", body: rankingsBody({ rows: [], problems: [], pages: 1, page: 1 }) }),
-    );
-  const { shown } = applyHiding(data.rows, await readHidden());
-  const pages = Math.max(1, Math.ceil(shown.length / PER_PAGE));
-  let page = parseInt(req.query.page, 10);
-  page = Math.min(Math.max(Number.isFinite(page) ? page : 1, 1), pages);
-  res.send(
-    layout({
-      active: "rank",
-      updated: fmtDate(data.mtime, true),
-      body: rankingsBody({
-        rows: shown.slice((page - 1) * PER_PAGE, page * PER_PAGE),
-        problems: data.problems,
-        hasTime: data.cols.includes("total_time"),
-        hasPen: data.cols.includes("penalty"),
-        pages, page,
+app.get(
+  "/",
+  publicCache,
+  ah(async (req, res) => {
+    const data = await loadLive();
+    if (!data)
+      return res.send(
+        layout({
+          active: "rank",
+          updated: "-",
+          body: rankingsBody({ rows: [], problems: [], pages: 1, page: 1 }),
+        }),
+      );
+    const { shown } = applyHiding(data.rows, await readHidden());
+    const pages = Math.max(1, Math.ceil(shown.length / PER_PAGE));
+    let page = parseInt(req.query.page, 10);
+    page = Math.min(Math.max(Number.isFinite(page) ? page : 1, 1), pages);
+    res.send(
+      layout({
+        active: "rank",
+        updated: fmtDate(data.mtime, true),
+        body: rankingsBody({
+          rows: shown.slice((page - 1) * PER_PAGE, page * PER_PAGE),
+          problems: data.problems,
+          hasTime: data.cols.includes("total_time"),
+          hasPen: data.cols.includes("penalty"),
+          pages,
+          page,
+        }),
       }),
-    }),
-  );
-}));
+    );
+  }),
+);
 
 // ---------- questions page ----------
 const meter = (pct) => {
-  const n = 20, on = Math.round((n * pct) / 100);
+  const n = 20,
+    on = Math.round((n * pct) / 100);
   let h = "";
   for (let i = 0; i < n; i++) h += `<i class="${i < on ? "f" : ""}"></i>`;
   return `<div class="meter">${h}</div>`;
 };
 
-app.get("/questions", publicCache, ah(async (req, res) => {
-  const data = await loadLive();
-  if (!data)
-    return res.send(
-      layout({ active: "q", updated: "-", body: `<div class="empty">Questions will appear here shortly</div>` }),
-    );
-  const { shown } = applyHiding(data.rows, await readHidden());
-  const s = solveStats(shown, data.problems);
+app.get(
+  "/questions",
+  publicCache,
+  ah(async (req, res) => {
+    const data = await loadLive();
+    if (!data)
+      return res.send(
+        layout({
+          active: "q",
+          updated: "-",
+          body: `<div class="empty">Questions will appear here shortly</div>`,
+        }),
+      );
+    const { shown } = applyHiding(data.rows, await readHidden());
+    const s = solveStats(shown, data.problems);
 
-  const cards = s.list
-    .map(
-      (it) => `<div class="card">
+    const cards = s.list
+      .map(
+        (it) => `<div class="card">
 <span class="pn">${it.label}</span>
 <div class="nm" title="${esc(it.name)}">${esc(it.name)}</div>
 <div class="big">${it.solved}<small>/ ${s.total}</small></div>
 ${meter(it.pct)}
 <div class="pc">${it.pct}% solved</div></div>`,
-    )
-    .join("");
+      )
+      .join("");
 
-  const body = `<div class="strip">
+    const body = `<div class="strip">
 <div><b>${s.total}</b><span>PARTICIPANTS</span></div>
 <div><b>${s.list.length}</b><span>QUESTIONS</span></div>
 </div>
 <div class="grid">${cards}</div>`;
 
-  res.send(layout({ active: "q", updated: fmtDate(data.mtime, true), body }));
-}));
+    res.send(layout({ active: "q", updated: fmtDate(data.mtime, true), body }));
+  }),
+);
 
 // ---------- admin (password protected) ----------
 const safeEqual = (a, b) =>
@@ -433,14 +500,22 @@ const safeEqual = (a, b) =>
 function auth(req, res, next) {
   if (!ADMIN_PASSWORD) {
     if (!ON_VERCEL) return next(); // local use without a password is fine
-    return res.status(503).send("Admin is locked. Set the ADMIN_PASSWORD environment variable in Vercel and redeploy.");
+    return res
+      .status(503)
+      .send(
+        "Admin is locked. Set the ADMIN_PASSWORD environment variable in Vercel and redeploy.",
+      );
   }
   const hdr = req.headers.authorization || "";
   if (hdr.startsWith("Basic ")) {
     const [u, ...p] = Buffer.from(hdr.slice(6), "base64").toString().split(":");
-    if (safeEqual(u, ADMIN_USER) && safeEqual(p.join(":"), ADMIN_PASSWORD)) return next();
+    if (safeEqual(u, ADMIN_USER) && safeEqual(p.join(":"), ADMIN_PASSWORD))
+      return next();
   }
-  res.set("WWW-Authenticate", 'Basic realm="Admin"').status(401).send("Login required");
+  res
+    .set("WWW-Authenticate", 'Basic realm="Admin"')
+    .status(401)
+    .send("Login required");
 }
 app.use("/admin", (req, res, next) => {
   res.set("Cache-Control", "no-store");
@@ -456,7 +531,11 @@ async function adminPage(msg, bad) {
     const present = new Set(data.rows.map((r) => norm(r.user_handle)));
     const unmatched = [...hidden].filter((h) => !present.has(h)).sort();
     const neg = shown
-      .filter((r) => String(r.total_time || "").trim().startsWith("-"))
+      .filter((r) =>
+        String(r.total_time || "")
+          .trim()
+          .startsWith("-"),
+      )
       .map((r) => r.user_handle);
     stats = `<div class="box"><b>Live file:</b> ${esc(fmtDate(data.mtime, true))} (${esc(data.name)})<br>
 <b>${hiddenCount} hidden, ${shown.length} shown</b> (total in file: ${data.rows.length})
@@ -497,37 +576,59 @@ ${stats}
 <p><a href="/" target="_blank">Rankings</a> | <a href="/questions" target="_blank">Questions</a></p>`;
 }
 
-app.get("/admin", ah(async (req, res) => res.send(await adminPage())));
+app.get(
+  "/admin",
+  ah(async (req, res) => res.send(await adminPage())),
+);
 
-app.post("/admin/upload", upload.single("file"), ah(async (req, res) => {
-  if (!req.file) return res.send(await adminPage("No file chosen.", true));
-  const result = parseCsv(req.file.buffer);
-  if (result.error)
-    return res.send(await adminPage(`REJECTED. ${result.error} Still showing the previous standings.`, true));
-  const old = await loadLive();
-  if (old && !req.body.force && result.rows.length < 0.8 * old.rows.length)
-    return res.send(
+app.post(
+  "/admin/upload",
+  upload.single("file"),
+  ah(async (req, res) => {
+    if (!req.file) return res.send(await adminPage("No file chosen.", true));
+    const result = parseCsv(req.file.buffer);
+    if (result.error)
+      return res.send(
+        await adminPage(
+          `REJECTED. ${result.error} Still showing the previous standings.`,
+          true,
+        ),
+      );
+    const old = await loadLive();
+    if (old && !req.body.force && result.rows.length < 0.8 * old.rows.length)
+      return res.send(
+        await adminPage(
+          `REJECTED. New file has ${result.rows.length} participants, last one had ${old.rows.length}. Wrong or old file? Tick the override box if this is correct.`,
+          true,
+        ),
+      );
+    await saveSnap(result);
+    res.send(
       await adminPage(
-        `REJECTED. New file has ${result.rows.length} participants, last one had ${old.rows.length}. Wrong or old file? Tick the override box if this is correct.`,
-        true,
+        `Published (${result.rows.length} participants). Reload the public page to see it.`,
       ),
     );
-  await saveSnap(result);
-    res.send(await adminPage(`Published (${result.rows.length} participants). Reload the public page to see it.`));
-}));
+  }),
+);
 
-app.post("/admin/hidden", ah(async (req, res) => {
-  await store.set("cr:hidden", { text: String(req.body.hidden || "") });
-  res.send(await adminPage("Hidden list saved."));
-}));
+app.post(
+  "/admin/hidden",
+  ah(async (req, res) => {
+    await store.set("cr:hidden", { text: String(req.body.hidden || "") });
+    res.send(await adminPage("Hidden list saved."));
+  }),
+);
 
-app.post("/admin/rollback", ah(async (req, res) => {
-  const n = String(req.body.name || "");
-  const exists = (await listSnaps()).some((s) => s.name === n);
-  if (!exists) return res.sendStatus(404);
-  await store.set("cr:live", { name: n });
-  res.send(await adminPage("Rolled back."));
-}));
+app.post(
+  "/admin/rollback",
+  ah(async (req, res) => {
+    const n = String(req.body.name || "");
+    const exists = (await listSnaps()).some((s) => s.name === n);
+    if (!exists) return res.sendStatus(404);
+    await store.set("cr:live", { name: n });
+    res.send(await adminPage("Rolled back."));
+  }),
+);
 
 // ---------- errors ----------
 app.use((err, req, res, next) => {
@@ -535,7 +636,8 @@ app.use((err, req, res, next) => {
   const msg =
     err && err.code === "LIMIT_FILE_SIZE"
       ? "File is too big (4 MB limit)."
-      : "Something went wrong: " + (err && err.message ? err.message : "unknown error");
+      : "Something went wrong: " +
+        (err && err.message ? err.message : "unknown error");
   res.status(500).send(esc(msg));
 });
 
