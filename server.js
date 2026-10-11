@@ -302,10 +302,11 @@ body{margin:0;background:var(--black);color:var(--cream);
 .scroll{overflow-x:auto;background:var(--cream);border-radius:12px}
 table{border-collapse:collapse;width:100%;min-width:760px;font-size:17px;color:var(--black)}
 th{background:var(--orange);color:var(--black);font-weight:700;padding:12px 8px;font-size:13px;letter-spacing:1px;text-align:center;white-space:nowrap}
+th.uh{width:190px;max-width:190px}
 td{padding:12px 8px;text-align:center;border-bottom:2px dotted #b8b3a6}
-td.l{text-align:center;padding:12px 8px;white-space:nowrap;font-weight:700}
-td.l a{color:var(--black);text-decoration:none}
-td.l small{display:block;color:#5c594f;font-size:12px;font-weight:400;max-width:280px;overflow:hidden;text-overflow:ellipsis;margin:0 auto}
+td.l{text-align:center;padding:12px 8px;white-space:nowrap;font-weight:700;width:190px;max-width:190px}
+td.l a{display:block;max-width:170px;margin:0 auto;overflow:hidden;text-overflow:ellipsis;color:var(--black);text-decoration:none}
+td.l small{display:block;color:#5c594f;font-size:12px;font-weight:400;max-width:170px;overflow:hidden;text-overflow:ellipsis;margin:0 auto}
 td.r{color:#d9400a;font-size:22px;font-weight:800}
 td.sc{color:#d9400a;font-weight:800}
 tr:hover td{background:#ddd8cb}
@@ -313,6 +314,8 @@ tr:hover td{background:#ddd8cb}
 .sd{background:var(--black)}
 .nd{border:1.5px solid #8a877d}
 .pager{margin:18px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pager a,.pager b{padding:6px 12px;border:2px solid var(--cream);text-decoration:none;color:var(--cream);font-size:14px;border-radius:6px}
+.pager b{background:var(--orange);border-color:var(--orange);color:var(--black)}
 .strip{display:grid;grid-template-columns:repeat(2,1fr);margin:6px 0 18px;border-top:2px dotted var(--line);border-bottom:2px dotted var(--line)}
 .strip div{padding:14px 10px;text-align:center;border-right:2px dotted var(--line)}
 .strip div:last-child{border-right:0}
@@ -356,6 +359,7 @@ const publicCache = (req, res, next) => {
 };
 
 // ---------- rankings page ----------
+// Column order: RANK, USERNAME, PENALTY, P1..Pn, SCORE, TIME
 function rankingsBody({ rows, problems, hasTime, hasPen, pages, page }) {
   if (!rows.length)
     return `<div class="empty">Standings will appear here shortly</div>`;
@@ -363,10 +367,12 @@ function rankingsBody({ rows, problems, hasTime, hasPen, pages, page }) {
   const podium = page === 1 ? rows.slice(0, 3) : [];
   const tableRows = page === 1 ? rows.slice(3) : rows;
 
+  const scoreOf = (r) => (Number.isInteger(r._score) ? r._score : r.score);
+
   const pod = (r, first) =>
     `<div class="pod${first ? " first" : ""}"><div class="n">${r._newrank}</div>
 <div class="u">${esc(r.user_handle)}</div>
-<div class="s">score ${esc(Number.isInteger(r._score) ? r._score : r.score)}${hasTime ? " | " + esc(r.total_time) : ""}</div></div>`;
+<div class="s">score ${esc(scoreOf(r))}${hasTime ? " | " + esc(r.total_time) : ""}</div></div>`;
   let podHtml = "";
   if (podium.length) {
     const order = [podium[1], podium[0], podium[2]].filter(Boolean);
@@ -376,10 +382,12 @@ function rankingsBody({ rows, problems, hasTime, hasPen, pages, page }) {
   let tableHtml = "";
   if (tableRows.length) {
     const head =
-      `<th>RANK</th><th>USERNAME</th><th>SCORE</th>` +
-      (hasTime ? `<th>TIME</th>` : "") +
+      `<th>RANK</th><th class="uh">USERNAME</th>` +
       (hasPen ? `<th>PENALTY</th>` : "") +
-      problems.map((p, i) => `<th title="${esc(p)}">P${i + 1}</th>`).join("");
+      problems.map((p, i) => `<th title="${esc(p)}">P${i + 1}</th>`).join("") +
+      `<th>SCORE</th>` +
+      (hasTime ? `<th>TIME</th>` : "");
+
     const trs = tableRows
       .map((r) => {
         const inst = r.institution
@@ -394,9 +402,8 @@ function rankingsBody({ rows, problems, hasTime, hasPen, pages, page }) {
           })
           .join("");
         return `<tr><td class="r">${r._newrank}</td>
-<td class="l"><a href="https://www.codechef.com/users/${encodeURIComponent(r.user_handle)}" target="_blank" rel="noopener">${esc(r.user_handle)}</a>${inst}</td>
-<td class="sc">${esc(Number.isInteger(r._score) ? r._score : r.score)}</td>
-${hasTime ? `<td>${esc(r.total_time)}</td>` : ""}${hasPen ? `<td>${esc(r.penalty)}</td>` : ""}${cells}</tr>`;
+<td class="l"><a href="https://www.codechef.com/users/${encodeURIComponent(r.user_handle)}" target="_blank" rel="noopener" title="${esc(r.user_handle)}">${esc(r.user_handle)}</a>${inst}</td>
+${hasPen ? `<td>${esc(r.penalty)}</td>` : ""}${cells}<td class="sc">${esc(scoreOf(r))}</td>${hasTime ? `<td>${esc(r.total_time)}</td>` : ""}</tr>`;
       })
       .join("\n");
     tableHtml = `<div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${trs}</tbody></table></div>`;
