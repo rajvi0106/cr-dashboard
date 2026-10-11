@@ -299,21 +299,20 @@ body{margin:0;background:var(--black);color:var(--cream);
 .pod.first .n{font-size:52px}
 .pod .u{font-size:18px;font-weight:700;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pod .s{font-size:13px;opacity:.75;margin-top:4px}
-.scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:760px;font-size:17px}
-th{background:var(--cream);color:var(--black);font-weight:700;padding:12px 8px;font-size:13px;letter-spacing:1px;text-align:center;white-space:nowrap}
-td{padding:12px 8px;text-align:center;border-bottom:2px dotted #3a3a37}
+.scroll{overflow-x:auto;background:var(--cream);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:17px;color:var(--black)}
+th{background:var(--orange);color:var(--black);font-weight:700;padding:12px 8px;font-size:13px;letter-spacing:1px;text-align:center;white-space:nowrap}
+td{padding:12px 8px;text-align:center;border-bottom:2px dotted #b8b3a6}
 td.l{text-align:center;padding:12px 8px;white-space:nowrap;font-weight:700}
-td.l a{color:var(--cream);text-decoration:none}
-td.l small{display:block;color:var(--dim);font-size:12px;font-weight:400;max-width:280px;overflow:hidden;text-overflow:ellipsis;margin:0 auto}
-td.r{color:var(--orange);font-size:22px;font-weight:800}
-td.sc{color:var(--orange);font-weight:800}
-tr:hover td{background:#141414}
+td.l a{color:var(--black);text-decoration:none}
+td.l small{display:block;color:#5c594f;font-size:12px;font-weight:400;max-width:280px;overflow:hidden;text-overflow:ellipsis;margin:0 auto}
+td.r{color:#d9400a;font-size:22px;font-weight:800}
+td.sc{color:#d9400a;font-weight:800}
+tr:hover td{background:#ddd8cb}
 .sd,.nd{display:inline-block;width:13px;height:13px;border-radius:50%}
-.sd{background:#fff}
-.nd{border:1.5px solid #8a877d}.pager{margin:18px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.pager a,.pager b{padding:6px 12px;border:2px solid var(--cream);text-decoration:none;color:var(--cream);font-size:14px;border-radius:6px}
-.pager b{background:var(--orange);border-color:var(--orange);color:var(--black)}
+.sd{background:var(--black)}
+.nd{border:1.5px solid #8a877d}
+.pager{margin:18px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .strip{display:grid;grid-template-columns:repeat(2,1fr);margin:6px 0 18px;border-top:2px dotted var(--line);border-bottom:2px dotted var(--line)}
 .strip div{padding:14px 10px;text-align:center;border-right:2px dotted var(--line)}
 .strip div:last-child{border-right:0}
