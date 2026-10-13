@@ -300,13 +300,13 @@ body{margin:0;background:var(--black);color:var(--cream);
 .pod .u{font-size:18px;font-weight:700;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pod .s{font-size:13px;opacity:.75;margin-top:4px}
 .scroll{overflow-x:auto;background:var(--cream);border-radius:12px}
-table{border-collapse:collapse;width:100%;min-width:760px;font-size:17px;color:var(--black)}
+table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:17px;color:var(--black)}
 th{background:var(--orange);color:var(--black);font-weight:700;padding:12px 8px;font-size:13px;letter-spacing:1px;text-align:center;white-space:nowrap}
-th.uh{width:190px;max-width:190px}
 td{padding:12px 8px;text-align:center;border-bottom:2px dotted #b8b3a6}
-td.l{text-align:center;padding:12px 8px;white-space:nowrap;font-weight:700;width:190px;max-width:190px}
+td.l{text-align:center;padding:12px 8px;white-space:nowrap;font-weight:700;}
 td.l a{display:block;max-width:170px;margin:0 auto;overflow:hidden;text-overflow:ellipsis;color:var(--black);text-decoration:none}
 td.l small{display:block;color:#5c594f;font-size:12px;font-weight:400;max-width:170px;overflow:hidden;text-overflow:ellipsis;margin:0 auto}
+th.pc,td.pc{padding-left:2px;padding-right:2px}
 td.r{color:#d9400a;font-size:22px;font-weight:800}
 td.sc{color:#d9400a;font-weight:800}
 tr:hover td{background:#ddd8cb}
@@ -342,7 +342,7 @@ function layout({ active, updated, body }) {
 <div class="page">
 ${BANNER}
 <div class="brand"><div class="logo">code<br>rumble</div><div class="ver">4.0</div>
-<div class="live"><i>&#9679;</i> Live<br>${esc(CONTEST_NAME)} | Updated ${esc(updated)}</div></div>
+<div class="live"><i>&#9679;</i> Contest Ended<br>${esc(CONTEST_NAME)}</div></div>
 <div class="tabs"><a class="tab${active === "rank" ? " act" : ""}" href="/">RANKINGS</a><a class="tab${active === "q" ? " act" : ""}" href="/questions">QUESTIONS</a></div>
 ${body}
 <div class="foot"><span>TPC</span><span>IIITDMJ</span><span>CR 4.0</span></div>
@@ -359,8 +359,8 @@ const publicCache = (req, res, next) => {
 };
 
 // ---------- rankings page ----------
-// Column order: RANK, USERNAME, PENALTY, P1..Pn, SCORE, TIME
-function rankingsBody({ rows, problems, hasTime, hasPen, pages, page }) {
+// Column order: RANK, USERNAME, P1..Pn, SCORE
+function rankingsBody({ rows, problems, pages, page }) {
   if (!rows.length)
     return `<div class="empty">Standings will appear here shortly</div>`;
 
@@ -372,7 +372,7 @@ function rankingsBody({ rows, problems, hasTime, hasPen, pages, page }) {
   const pod = (r, first) =>
     `<div class="pod${first ? " first" : ""}"><div class="n">${r._newrank}</div>
 <div class="u">${esc(r.user_handle)}</div>
-<div class="s">score ${esc(scoreOf(r))}${hasTime ? " | " + esc(r.total_time) : ""}</div></div>`;
+<div class="s">score ${esc(scoreOf(r))}</div></div>`;
   let podHtml = "";
   if (podium.length) {
     const order = [podium[1], podium[0], podium[2]].filter(Boolean);
@@ -383,10 +383,15 @@ function rankingsBody({ rows, problems, hasTime, hasPen, pages, page }) {
   if (tableRows.length) {
     const head =
       `<th>RANK</th><th class="uh">USERNAME</th>` +
-      (hasPen ? `<th>PENALTY</th>` : "") +
-      problems.map((p, i) => `<th title="${esc(p)}">P${i + 1}</th>`).join("") +
-      `<th>SCORE</th>` +
-      (hasTime ? `<th>TIME</th>` : "");
+      problems.map((p, i) => `<th class="pc" title="${esc(p)}">P${i + 1}</th>`).join("") +
+      `<th>SCORE</th>`;
+
+    // Fixed widths for the left columns and the last two; the P columns share the rest.
+    const colgroup =
+      `<colgroup><col style="width:80px"><col style="width:190px">` +
+      problems.map(() => `<col>`).join("") +
+      `<col style="width:100px"></colgroup>`;
+    const minW = 370 + problems.length * 44;
 
     const trs = tableRows
       .map((r) => {
@@ -396,17 +401,17 @@ function rankingsBody({ rows, problems, hasTime, hasPen, pages, page }) {
         const cells = problems
           .map((p) => {
             const v = String(r[p] ?? "").trim();
-            if (!isSolved(v)) return `<td><span class="nd"></span></td>`;
-            if (v === "1") return `<td><span class="sd"></span></td>`;
-            return `<td class="sc">${esc(v)}</td>`;
+            if (!isSolved(v)) return `<td class="pc"><span class="nd"></span></td>`;
+            if (v === "1") return `<td class="pc"><span class="sd"></span></td>`;
+            return `<td class="pc sc">${esc(v)}</td>`;
           })
           .join("");
         return `<tr><td class="r">${r._newrank}</td>
 <td class="l"><a href="https://www.codechef.com/users/${encodeURIComponent(r.user_handle)}" target="_blank" rel="noopener" title="${esc(r.user_handle)}">${esc(r.user_handle)}</a>${inst}</td>
-${hasPen ? `<td>${esc(r.penalty)}</td>` : ""}${cells}<td class="sc">${esc(scoreOf(r))}</td>${hasTime ? `<td>${esc(r.total_time)}</td>` : ""}</tr>`;
+${cells}<td class="sc">${esc(scoreOf(r))}</td></tr>`;
       })
       .join("\n");
-    tableHtml = `<div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${trs}</tbody></table></div>`;
+    tableHtml = `<div class="scroll"><table style="min-width:${minW}px">${colgroup}<thead><tr>${head}</tr></thead><tbody>${trs}</tbody></table></div>`;
   }
 
   let pager = "";
@@ -441,8 +446,6 @@ app.get(
         body: rankingsBody({
           rows: shown.slice((page - 1) * PER_PAGE, page * PER_PAGE),
           problems: data.problems,
-          hasTime: data.cols.includes("total_time"),
-          hasPen: data.cols.includes("penalty"),
           pages,
           page,
         }),
